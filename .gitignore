@@ -10,6 +10,11 @@
 !.yarn/releases
 !.yarn/versions
 
+
+#IDE
+/.idea
+
+
 # testing
 /coverage
 
