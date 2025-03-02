@@ -1,4 +1,5 @@
 import Navbar from "@/app/(home)/_components/navbar";
+import Footer from "@/app/(home)/_components/footer";
 
 const HomeLayout = ({children} : {children: React.ReactNode}) => {
     return (
@@ -7,7 +8,7 @@ const HomeLayout = ({children} : {children: React.ReactNode}) => {
             <>
                 {children}
             </>
-            {/*{TODO : Footer}*/}
+            <Footer />
         </>
     )
 }
