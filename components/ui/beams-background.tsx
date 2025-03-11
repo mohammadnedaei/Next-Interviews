@@ -1,9 +1,9 @@
 "use client";
 
-import {useEffect, useMemo, useRef} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import {useTheme} from "next-themes";
+import { useTheme } from "next-themes";
 
 interface AnimatedGradientBackgroundProps {
     className?: string;
@@ -39,27 +39,43 @@ function createBeam(width: number, height: number): Beam {
         pulseSpeed: 0.02 + Math.random() * 0.1,
     };
 }
-
 export function BeamsBackground({
-    className,
-    intensity = "strong",
-    children
-}: AnimatedGradientBackgroundProps) {
+                                    className,
+                                    intensity = "strong",
+                                    children
+                                }: AnimatedGradientBackgroundProps) {
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === "dark";
-
+    const [isMobile, setIsMobile] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const beamsRef = useRef<Beam[]>([]);
     const animationFrameRef = useRef<number>(0);
-    const MINIMUM_BEAMS = 20;
+    const lastFrameTime = useRef<number>(0);
+    const frameInterval = useRef<number>(1000 / 30); // Start with 30fps
 
-    const opacityMap = useMemo(() => {
-        return {
-            subtle: 0.7,
-            medium: 0.85,
-            strong: 1,
-        }
-    }, [])
+    const MINIMUM_BEAMS = isMobile ? 12 : 20;
+
+    const opacityMap = useMemo(() => ({
+        subtle: 0.7,
+        medium: 0.85,
+        strong: 1,
+    }), []);
+
+    useEffect(() => {
+        // Detect mobile initially
+        const checkMobile = () =>
+            window.matchMedia("(max-width: 768px)").matches ||
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        setIsMobile(checkMobile());
+
+        const handleResize = () => {
+            setIsMobile(checkMobile());
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -68,22 +84,27 @@ export function BeamsBackground({
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
+        // Adjust settings based on device
+        const dpr = isMobile ? 1 : window.devicePixelRatio || 1;
+        const targetFPS = isMobile ? 30 : 60;
+        frameInterval.current = 1000 / targetFPS;
+
         const updateCanvasSize = () => {
-            const dpr = window.devicePixelRatio || 1;
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
             canvas.style.width = `${window.innerWidth}px`;
             canvas.style.height = `${window.innerHeight}px`;
             ctx.scale(dpr, dpr);
 
-            const totalBeams = MINIMUM_BEAMS * 1.5;
+            const totalBeams = isMobile ? MINIMUM_BEAMS : MINIMUM_BEAMS * 1.5;
             beamsRef.current = Array.from({ length: totalBeams }, () =>
                 createBeam(canvas.width, canvas.height)
             );
         };
 
         updateCanvasSize();
-        window.addEventListener("resize", updateCanvasSize);
+        const resizeObserver = new ResizeObserver(updateCanvasSize);
+        resizeObserver.observe(canvas);
 
         function resetBeam(beam: Beam, index: number, totalBeams: number) {
             if (!canvas) return beam;
@@ -102,38 +123,19 @@ export function BeamsBackground({
             beam.opacity = 0.2 + Math.random() * 0.1;
             return beam;
         }
-
         function drawBeam(ctx: CanvasRenderingContext2D, beam: Beam) {
             ctx.save();
             ctx.translate(beam.x, beam.y);
             ctx.rotate((beam.angle * Math.PI) / 180);
 
-            // Calculate pulsing opacity
-            const pulsingOpacity =
-                beam.opacity *
+            const pulsingOpacity = beam.opacity *
                 (0.8 + Math.sin(beam.pulse) * 0.2) *
                 opacityMap[intensity];
 
+            // Simplified gradient with fewer stops
             const gradient = ctx.createLinearGradient(0, 0, 0, beam.length);
-
-            // Enhanced gradient with multiple color stops
             gradient.addColorStop(0, `hsla(${beam.hue}, 85%, 65%, 0)`);
-            gradient.addColorStop(
-                0.1,
-                `hsla(${beam.hue}, 85%, 65%, ${pulsingOpacity * 0.5})`
-            );
-            gradient.addColorStop(
-                0.4,
-                `hsla(${beam.hue}, 85%, 65%, ${pulsingOpacity})`
-            );
-            gradient.addColorStop(
-                0.6,
-                `hsla(${beam.hue}, 85%, 65%, ${pulsingOpacity})`
-            );
-            gradient.addColorStop(
-                0.9,
-                `hsla(${beam.hue}, 85%, 65%, ${pulsingOpacity * 0.5})`
-            );
+            gradient.addColorStop(0.4, `hsla(${beam.hue}, 85%, 65%, ${pulsingOpacity})`);
             gradient.addColorStop(1, `hsla(${beam.hue}, 85%, 65%, 0)`);
 
             ctx.fillStyle = gradient;
@@ -141,20 +143,28 @@ export function BeamsBackground({
             ctx.restore();
         }
 
-        function animate() {
+        function animate(timestamp: number) {
             if (!canvas || !ctx) return;
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.filter = "blur(35px)";
+            // Throttle frame rate
+            const delta = timestamp - lastFrameTime.current;
+            if (delta < frameInterval.current) {
+                animationFrameRef.current = requestAnimationFrame(animate);
+                return;
+            }
+            lastFrameTime.current = timestamp;
 
-            const totalBeams = beamsRef.current.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Reduced blur effect
+            ctx.filter = isMobile ? "blur(20px)" : "blur(35px)";
+
             beamsRef.current.forEach((beam, index) => {
-                beam.y -= beam.speed;
+                beam.y -= beam.speed * (isMobile ? 0.8 : 1);
                 beam.pulse += beam.pulseSpeed;
 
-                // Reset beam when it goes off screen
                 if (beam.y + beam.length < -100) {
-                    resetBeam(beam, index, totalBeams);
+                    resetBeam(beam, index, beamsRef.current.length);
                 }
 
                 drawBeam(ctx, beam);
@@ -163,23 +173,30 @@ export function BeamsBackground({
             animationFrameRef.current = requestAnimationFrame(animate);
         }
 
-        animate();
-
-        return () => {
-            window.removeEventListener("resize", updateCanvasSize);
-            if (animationFrameRef.current) {
+        // Handle visibility changes
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
                 cancelAnimationFrame(animationFrameRef.current);
+            } else {
+                animationFrameRef.current = requestAnimationFrame(animate);
             }
         };
-    }, [intensity, opacityMap]);
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        animationFrameRef.current = requestAnimationFrame(animate);
+
+        return () => {
+            resizeObserver.disconnect();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            cancelAnimationFrame(animationFrameRef.current);
+        };
+    }, [intensity, isMobile, opacityMap]);
 
     return (
-        <div
-            className={cn(
-                `relative min-h-screen w-full overflow-hidden ${isDark? "bg-neutral-800" : "bg-neutral-50"}`,
-                className
-            )}
-        >
+        <div className={cn(
+            `relative min-h-screen w-full overflow-hidden ${isDark ? "bg-neutral-800" : "bg-neutral-50"}`,
+            className
+        )}>
             <canvas
                 ref={canvasRef}
                 className="absolute inset-0"
@@ -205,7 +222,6 @@ export function BeamsBackground({
                 <div className="flex flex-col items-center justify-center gap-6 px-4 text-center">
                     {children}
                 </div>
-            </div>
-        </div>
+            </div>        </div>
     );
 }
