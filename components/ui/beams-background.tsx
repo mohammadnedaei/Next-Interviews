@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {useEffect, useMemo, useRef} from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import {useTheme} from "next-themes";
@@ -53,11 +53,13 @@ export function BeamsBackground({
     const animationFrameRef = useRef<number>(0);
     const MINIMUM_BEAMS = 20;
 
-    const opacityMap = {
-        subtle: 0.7,
-        medium: 0.85,
-        strong: 1,
-    };
+    const opacityMap = useMemo(() => {
+        return {
+            subtle: 0.7,
+            medium: 0.85,
+            strong: 1,
+        }
+    }, [])
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -169,7 +171,7 @@ export function BeamsBackground({
                 cancelAnimationFrame(animationFrameRef.current);
             }
         };
-    }, [intensity]);
+    }, [intensity, opacityMap]);
 
     return (
         <div
