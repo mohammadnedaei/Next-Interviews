@@ -1,5 +1,6 @@
 import {Mic} from "lucide-react";
 import {BeamsBackground} from "@/components/ui/beams-background";
+import Image from "next/image";
 
 const Testimonials = () => {
     return (
@@ -20,17 +21,19 @@ const Testimonials = () => {
                         </p>
                     </blockquote>
                     <figcaption className="mt-10">
-                        <img
+                        <Image
+                            width={200}
+                            height={200}
                             alt="User Testimonial"
                             src="https://images.unsplash.com/photo-1532074205216-d0e1f4b87368?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                            className="mx-auto size-10 rounded-full"
+                            className="mx-auto size-20 rounded-full"
                         />
                         <div className="mt-4 flex items-center justify-center space-x-3 text-base">
                             <div className="font-semibold">Angela Carter</div>
                             <svg width={3} height={3} viewBox="0 0 2 2" aria-hidden="true" className="fill-gray-500">
                                 <circle r={1} cx={1} cy={1} />
                             </svg>
-                            <div>Software Engineer at TechCorp</div>
+                            <div>Software Engineer at Microsoft</div>
                         </div>
                     </figcaption>
                 </figure>
