@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useNewsletterForm } from "@/lib/hooks/useNewsletterForm";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import {sendNewsletterEmail} from "@/app/actions/newsletter";
 
 const Newsletter = () => {
     const newsletterForm = useNewsletterForm();
@@ -17,17 +19,25 @@ const Newsletter = () => {
         if (emailValue) {
             newsletterForm.trigger("email");
         }
-    }, [newsletterForm.formState.isDirty]);
+    }, [newsletterForm.formState.isDirty, newsletterForm]);
 
     const onSubmit = async (data: NewsletterFormData) => {
         setLoading(true);
-        setTimeout(() => {
-            console.log("Data submitted:", data);
+        try {
+            const result = await sendNewsletterEmail(data.email);
+            if (result.success) {
+                toast.success("Subscription successful!");
+            } else {
+                toast.error("Something went wrong");
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error("Something went wrong.");
+        } finally {
             setLoading(false);
             newsletterForm.reset();
-        }, 2000);
+        }
     };
-
     return (
         <div className="relative isolate overflow-hidden py-16 sm:py-24 lg:py-32">
             <div className="mx-auto max-w-7xl px-6 lg:px-8">
